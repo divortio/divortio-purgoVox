@@ -137,3 +137,4 @@ dist
 divortio-purgoVox.iml
 
 /public/vendor/@ffmpeg/*/dist/umd/*.wasm
+scratch.txt
