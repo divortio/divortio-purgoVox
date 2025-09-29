@@ -136,3 +136,4 @@ dist
 /public/vendor/*.wasm
 divortio-purgoVox.iml
 
+/public/vendor/@ffmpeg/*/dist/umd/*.wasm
