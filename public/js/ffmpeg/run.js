@@ -20,18 +20,17 @@ export async function runFFmpeg(ffmpeg, args, updateUI, logStore) {
     console.log("Executing FFmpeg command:", commandString);
 
     try {
-        let result;
-
-
-        result = await ffmpeg.exec(args);
-
-        // ------------------------
-
-        if (result !== 0) {
-            throw new Error(`FFmpeg exited with a non-zero status code: ${result}.\n\nFull Log:\n${logStore.get()}`);
-        }
+        await ffmpeg.exec(...args);
     } catch (error) {
-        const detailedError = `FFmpeg command failed: ${error.message}\n\nFailed Command:\n${commandString}\n\nFull Log:\n${logStore.get()}`;
-        throw new Error(detailedError);
+
+        // Create a much more detailed error message for better debugging.
+        const detailedError = new Error(
+            `FFmpeg command failed: ${error.message}\n\n` +
+            `Failed Command:\n${commandString}\n\n` +
+            `Full Log:\n${logStore.get()}`
+        );
+        detailedError.name = 'FFmpegExecutionError';
+        throw detailedError;
+
     }
 }

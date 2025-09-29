@@ -11,7 +11,8 @@ export class UI {
             'ffmpegVersionIndicator', 'mtDiagnostics', 'ffmpegCommand', 'errorContainer',
             'errorBlock', 'ffmpegLogs', 'copyCommandBtn', 'copyLogsBtn', 'copyErrorBtn',
             'masteringOptionsSection', 'gateToggle', 'clarityToggle', 'tonalToggle', 'softClipToggle',
-            'subProgressBar', 'subProgressBarInner', 'stepTimings', 'ffmpegFilters'
+            'subProgressBar', 'subProgressBarInner', 'stepTimings', 'ffmpegFilters',
+            'workerStatusContainer'
         ];
         ids.forEach(id => this.dom[id] = document.getElementById(id));
         this.audioBlob = null;
@@ -25,7 +26,8 @@ export class UI {
 
         this.dom.consoleHeader.addEventListener('click', () => {
             this.dom.consoleHeader.classList.toggle('collapsed');
-            this.dom.diagnosticsSection.style.display = this.dom.diagnosticsSection.style.display === 'none' ? 'block' : 'none';
+            const section = this.dom.diagnosticsSection;
+            section.style.display = section.style.display === 'none' ? 'flex' : 'none';
         });
 
         const downloadAction = (blob, extension) => {
@@ -57,14 +59,22 @@ export class UI {
     }
 
     displayInitialState() {
-        this.dom.uploadArea.style.display = 'block';
+        this.dom.uploadArea.style.display = 'flex';
         this.dom.uploadAreaText.textContent = 'Click to upload an audio file';
         this.dom.uploadArea.style.cursor = 'pointer';
         ['inputStatsSection', 'executionSection', 'outputSection', 'masteringOptionsSection', 'errorContainer'].forEach(id => this.dom[id].style.display = 'none');
+
+        this.dom.consoleHeader.classList.add('collapsed');
+        this.dom.diagnosticsSection.style.display = 'none';
     }
 
     displayLoadingState(initialMessage = 'Loading FFmpeg Core...') {
         this.dom.uploadAreaText.textContent = initialMessage;
+        this.dom.uploadArea.style.cursor = 'not-allowed';
+    }
+
+    displayWorkerLoadingState(message) {
+        this.dom.uploadAreaText.textContent = message;
         this.dom.uploadArea.style.cursor = 'not-allowed';
     }
 
@@ -93,7 +103,29 @@ export class UI {
         this.dom.subProgressBar.style.display = 'none';
         this.dom.subProgressBarInner.style.width = '0%';
         this.dom.stepTimings.innerHTML = '';
+        this.dom.workerStatusContainer.innerHTML = '';
         startTimer(this.dom.executionTimer);
+    }
+
+    initializeWorkerStatus(numWorkers) {
+        this.dom.workerStatusContainer.innerHTML = '';
+        for (let i = 0; i < numWorkers; i++) {
+            const workerStatusEl = document.createElement('div');
+            workerStatusEl.className = 'worker-status';
+            workerStatusEl.id = `worker-status-${i}`;
+            workerStatusEl.innerHTML = `
+                <span class="worker-id">Worker ${i}:</span>
+                <span class="worker-message">Idle</span>
+            `;
+            this.dom.workerStatusContainer.appendChild(workerStatusEl);
+        }
+    }
+
+    updateWorkerStatus(workerId, message) {
+        const workerStatusEl = document.getElementById(`worker-status-${workerId}`);
+        if (workerStatusEl) {
+            workerStatusEl.querySelector('.worker-message').textContent = message;
+        }
     }
 
     getMasteringOptions() {
@@ -112,21 +144,17 @@ export class UI {
     update({command, logs, progressStep, progressMessage, subProgressMessage, stepTime, version}) {
         if (command) this.dom.ffmpegCommand.textContent = command;
         if (logs) this.dom.ffmpegLogs.textContent += logs;
-
         if (version) this.dom.ffmpegVersionIndicator.innerHTML = version;
-
         if (progressStep) {
             const percentage = Math.round((progressStep.current / progressStep.total) * 100);
             this.dom.progressBarInner.style.width = `${percentage}%`;
             this.dom.executionIndicator.className = '';
-
             if (stepTime) {
                 const timeInfo = `(${(stepTime / 1000).toFixed(2)}s)`;
                 this.dom.stepTimings.innerHTML += `<div>${progressMessage}: ${timeInfo}</div>`;
             }
             this.dom.progressText.textContent = progressMessage;
         }
-
         if (subProgressMessage) {
             this.dom.progressText.textContent = subProgressMessage;
         }
@@ -138,9 +166,14 @@ export class UI {
 
         if (error) {
             this.dom.errorContainer.style.display = 'block';
-            this.dom.errorBlock.textContent = error.message;
+
+            const fullErrorMessage = error && error.message ? error.message : String(error);
+            const shortErrorMessage = fullErrorMessage.split('\n')[0];
+
+            this.dom.errorBlock.textContent = fullErrorMessage;
+
             this.dom.executionIndicator.className = 'error';
-            this.dom.progressText.textContent = `Failed: ${error.message.split('\n')[0]}`;
+            this.dom.progressText.textContent = `Failed: ${shortErrorMessage}`;
             this.dom.finalExecutionStats.textContent = `Aborted after ${(executionTime / 1000).toFixed(2)}s`;
             return;
         }

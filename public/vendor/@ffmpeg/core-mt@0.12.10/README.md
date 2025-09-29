@@ -1,0 +1,1 @@
+https://app.unpkg.com/@ffmpeg/core-mt@0.12.10/files/dist/umd

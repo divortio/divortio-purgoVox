@@ -1,0 +1,14 @@
+{
+  "name": "divortio-purgoVox",
+  "version": "1.0.0",
+  "description": "To cleanse the voice",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.32.00",
+    "@cloudflare/workers-types": "^4.20250807.0"
+  }
+}

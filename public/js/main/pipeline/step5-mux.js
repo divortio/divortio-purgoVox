@@ -2,7 +2,7 @@
  * @file Pipeline Step 5: Muxes the silent video with the original audio.
  */
 
-import {runFFmpeg} from '../ffmpeg-run.js';
+import {runFFmpeg} from '../../ffmpeg/run.js';
 
 /**
  * Muxes the final silent video with the original audio file.

@@ -2,7 +2,7 @@
  * @file Pipeline Step 1: Analyzes the input audio file to determine its duration and channel layout.
  */
 
-import {runFFmpeg} from '../ffmpeg-run.js';
+import {runFFmpeg} from '../../ffmpeg/run.js';
 
 /**
  * @typedef {object} AnalysisResult

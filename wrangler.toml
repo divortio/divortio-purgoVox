@@ -1,0 +1,21 @@
+# Wrangler Configuration for Divortio Worker Proxy
+# Version: 8.0.0
+# =====================================================================================
+name = "divortio-purgoVox"
+main = "src/loadWorker.js"
+compatibility_date = "2025-08-22"
+# account_id = "your_account_id_here"
+
+compatibility_date = "2025-08-15"
+compatibility_flags = ["nodejs_compat", "nodejs_als"]
+
+minify = true
+workers_dev = false
+preview_urls = false
+
+[placement]
+mode = "smart"
+
+[observability]
+enabled = true
+head_sampling_rate = 1

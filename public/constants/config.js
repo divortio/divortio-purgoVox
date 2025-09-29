@@ -12,14 +12,14 @@ export const FFMPEG_VERSION = "0.12.15";
 
 // --- Local FFmpeg Configuration ---
 /** @constant {string} The local path to the vendor directory. */
-const VENDOR_PATH = '/vendor/';
+const VENDOR_PATH = '/vendor';
 
 /** @constant {string} The base URL for the main FFmpeg UMD build. */
-export const baseURLFFMPEG = VENDOR_PATH;
+export const baseURLFFMPEG = `${VENDOR_PATH}/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/umd`;
 /** @constant {string} The base URL for the single-threaded FFmpeg core. */
-export const baseURLCore = VENDOR_PATH;
+export const baseURLCore = `${VENDOR_PATH}/@ffmpeg/core@${CORE_VERSION}/dist/umd`;
 /** @constant {string} The base URL for the multi-threaded FFmpeg core. */
-export const baseURLCoreMT = VENDOR_PATH;
+export const baseURLCoreMT = `${VENDOR_PATH}/@ffmpeg/core-mt@${CORE_VERSION}/dist/umd`;
 
 // Remote
 // export const baseURLFFMPEG = `https://unpkg.com/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/umd`;
@@ -61,3 +61,4 @@ export const TARGET_LOUDNESS_RANGE_LU = 11;
 export const HIGH_PASS_FREQ_HZ = 80;
 /** @constant {number} Noise floor for the spectral noise reduction filter (afftdn) (in dBFS). */
 export const NOISE_FLOOR_DBFS = -25;
+

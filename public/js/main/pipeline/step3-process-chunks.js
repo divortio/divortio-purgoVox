@@ -1,9 +1,10 @@
 /**
  * @file Pipeline Step 3: Processes each audio chunk through a multi-pass mastering chain.
+ * This script is used by the sequential pipeline and contains the core audio processing logic.
  */
 
-import {runFFmpeg} from '../ffmpeg-run.js';
-import {parseLoudness, parseRmsLevel} from './log-parser.js';
+import { runFFmpeg } from '../../ffmpeg/run.js';
+import { parseLoudness, parseRmsLevel } from '../../log-parser.js';
 import {
     TARGET_LOUDNESS_LUFS,
     TARGET_TRUE_PEAK_DBFS,
@@ -12,7 +13,11 @@ import {
     NOISE_FLOOR_DBFS,
     OUTPUT_FORMAT,
     OUTPUT_QUALITY
-} from '../constants.js';
+} from '../../../constants/config.js';
+
+/**
+ * @typedef {import('../../app.js').UIPayload} UIPayload
+ */
 
 /**
  * @typedef {object} MasteringOptions
@@ -24,23 +29,39 @@ import {
 
 /**
  * Processes all audio chunks through a four-pass audio mastering workflow.
+ * This function is designed to work within a `WORKERFS` environment where all input
+ * and output files are expected to be within a specific working directory.
+ *
+ * @param {import('../ffmpeg-pipeline.js').FFmpeg} ffmpeg - The initialized FFmpeg instance.
+ * @param {string[]} chunkFiles - A sorted array of full paths to the chunk files (e.g., ['/work/chunk_0000.wav']).
+ * @param {string} channelLayout - The channel layout ('mono' or 'stereo') of the audio.
+ * @param {MasteringOptions} options - User-selected mastering options.
+ * @param {(payload: UIPayload) => void} updateUI - The UI update callback function.
+ * @param {object} logStore - The log store for capturing FFmpeg logs.
+ * @returns {Promise<{processedFiles: string[]}>} A promise that resolves with an object containing the list of processed file paths.
  */
 export async function processChunks(ffmpeg, chunkFiles, channelLayout, options, updateUI, logStore) {
+    /** @type {string[]} */
     const processedFiles = [];
 
     for (let i = 0; i < chunkFiles.length; i++) {
         const chunkFile = chunkFiles[i];
-        const chunkBasename = chunkFile.split('.')[0];
-        const tempNormalizedFile = `${chunkBasename}_norm.wav`;
-        const finalOutputFile = `${chunkBasename}_mastered.${OUTPUT_FORMAT}`;
-        const rmsLogFile = 'rms_pass.txt';
+
+        // Correctly determine the working directory and filenames from the full input path.
+        const pathParts = chunkFile.split('/');
+        const chunkNameOnly = pathParts.pop();
+        const workingDirectory = pathParts.join('/');
+        const chunkBasename = chunkNameOnly.split('.')[0];
+
+        const tempNormalizedFile = `${workingDirectory}/${chunkBasename}_norm.wav`;
+        const finalOutputFile = `${workingDirectory}/${chunkBasename}_mastered.${OUTPUT_FORMAT}`;
+        const rmsLogFile = `${workingDirectory}/rms_pass_${i}.txt`; // Unique name inside working dir
 
         updateUI({
-            progressMessage: `Step 3: Processing Chunk (${i + 1}/${chunkFiles.length})`,
+            subProgressMessage: `Processing Chunk (${i + 1}/${chunkFiles.length})`,
         });
 
         // --- PASS 1: Loudness Analysis ---
-        updateUI({subProgressMessage: `Pass 1/4: Analyzing Loudness...`});
         logStore.clear();
         const initialFilters = `aformat=channel_layouts=${channelLayout},highpass=f=${HIGH_PASS_FREQ_HZ},afftdn=nf=${NOISE_FLOOR_DBFS},deesser`;
         const loudnessAnalysisFilter = `${initialFilters},loudnorm=I=${TARGET_LOUDNESS_LUFS}:TP=${TARGET_TRUE_PEAK_DBFS}:LRA=${TARGET_LOUDNESS_RANGE_LU}:print_format=json`;
@@ -49,13 +70,11 @@ export async function processChunks(ffmpeg, chunkFiles, channelLayout, options, 
         const loudnessData = parseLoudness(logStore.get());
 
         // --- PASS 2: Loudness Normalization ---
-        updateUI({subProgressMessage: `Pass 2/4: Applying Loudness Correction...`});
         const loudnessCorrectionFilter = `${initialFilters},loudnorm=I=${TARGET_LOUDNESS_LUFS}:TP=${TARGET_TRUE_PEAK_DBFS}:LRA=${TARGET_LOUDNESS_RANGE_LU}:measured_I=${loudnessData.measured_I}:measured_TP=${loudnessData.measured_TP}:measured_LRA=${loudnessData.measured_LRA}:measured_thresh=${loudnessData.measured_thresh}:offset=${loudnessData.target_offset}`;
         const normalizeArgs = ['-i', chunkFile, '-af', loudnessCorrectionFilter, tempNormalizedFile];
         await runFFmpeg(ffmpeg, normalizeArgs, updateUI, logStore);
 
         // --- PASS 3: Mastering Analysis (RMS) ---
-        updateUI({subProgressMessage: `Pass 3/4: Analyzing for Mastering...`});
         const rmsAnalysisFilter = `astats=metadata=1,ametadata=mode=print:file=${rmsLogFile}`;
         const rmsArgs = ['-i', tempNormalizedFile, '-af', rmsAnalysisFilter, '-f', 'null', '-'];
         await runFFmpeg(ffmpeg, rmsArgs, updateUI, logStore);
@@ -68,16 +87,11 @@ export async function processChunks(ffmpeg, chunkFiles, channelLayout, options, 
         }
 
         // --- PASS 4: Final Mastering and Encoding ---
-        updateUI({subProgressMessage: `Pass 4/4: Applying Final Mastering...`});
         const masteringFilters = [];
         const demudThreshold = rmsLevel + 3;
 
-        // BUG FIX: Using correct FFmpeg 5.1.4 syntax for adynamicequalizer
-        // adynamiceq=dfrequency=350:dqfactor=1.75:tfrequency=350:tqfactor=1.75:tftype=bell:threshold=22:attack=20:release=50:knee=1:ratio=1:makeup=2:range=2:slew=1:mode=boost
-        masteringFilters.push(`adynamicequalizer=dfrequency=350:dqfactor=1.75:tfrequency=350:tqfactor=1.75:tftype=bell:threshold=${demudThreshold}:attack=20:release=50:knee=1:ratio=1:makeup=2:range=2:slew=1:mode=boost`)
-
+        masteringFilters.push(`adynamicequalizer=dfrequency=350:dqfactor=1.75:tfrequency=350:tqfactor=1.75:tftype=bell:threshold=${demudThreshold}:attack=20:release=50:knee=1:ratio=1:makeup=2:range=2:slew=1:mode=boost`);
         masteringFilters.push(`adynamicequalizer=dfrequency=7000:dqfactor=3.5:tfrequency=7000:tqfactor=3.5:tftype=bell:threshold=22:attack=20:release=50:knee=1:ratio=1:makeup=3:range=3:slew=1:mode=boost`);
-
         masteringFilters.push(`alimiter=limit=0.9`);
 
         if (options.gate) {

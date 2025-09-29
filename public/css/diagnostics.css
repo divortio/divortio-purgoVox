@@ -1,0 +1,102 @@
+/* public/css/diagnostics.css */
+
+/* --- Diagnostics Tabs --- */
+.diagnostics-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 1rem;
+}
+
+.diagnostics-tab {
+    padding: 0.75rem 1.25rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease-in-out;
+    color: var(--text-muted-color);
+    font-weight: 500;
+}
+
+.diagnostics-tab:hover {
+    background-color: #2a2a2a;
+    color: var(--text-color);
+}
+
+.diagnostics-tab.active {
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--primary-color);
+}
+
+.diagnostics-panel {
+    display: none; /* Hidden by default */
+}
+
+.diagnostics-panel.active {
+    display: block; /* Shown when active */
+}
+
+/* --- Log Filtering --- */
+.log-filter-container {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    align-items: center;
+}
+
+.log-filter-container input[type="text"] {
+    flex-grow: 1;
+    background-color: #2a2a2a;
+    border: 1px solid #444;
+    color: var(--text-color);
+    padding: 0.5rem;
+    border-radius: 5px;
+}
+
+/* --- Structured Diagnostics --- */
+.diagnostics-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.5rem 1rem;
+    align-items: center;
+}
+
+.diagnostics-grid-label {
+    font-weight: 500;
+    color: var(--text-muted-color);
+}
+
+.diagnostics-grid-value {
+    font-family: monospace;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.diagnostics-icon {
+    font-size: 1.2rem;
+}
+
+.diagnostics-icon.success {
+    color: var(--success-color);
+}
+
+.diagnostics-icon.error {
+    color: var(--error-color);
+}
+
+/* --- Bug Report Button --- */
+#copyBugReportBtn {
+    background-color: var(--secondary-color);
+    color: var(--bg-color);
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    margin-top: 1rem;
+}
+
+#copyBugReportBtn:hover {
+    background-color: #92b0e8;
+}
