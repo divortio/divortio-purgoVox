@@ -139,3 +139,4 @@ divortio-purgoVox.iml
 /public/vendor/@ffmpeg/*/dist/umd/*.wasm
 scratch.txt
 package-lock.json
+/badPublic/
