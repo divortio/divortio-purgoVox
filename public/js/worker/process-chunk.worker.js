@@ -1,35 +1,11 @@
 /**
  * @file Web Worker for parallel audio chunk processing.
- * This script orchestrates the 4-pass mastering pipeline by calling
- * the individual pass modules in sequence.
  */
-
-// This global error handler is a safety net. It will catch any unhandled exceptions
-// that occur during the worker's initialization or execution phase.
-self.onerror = function(message, source, lineno, colno, error) {
-    self.postMessage({
-        status: 'error',
-        context: 'global_worker_error',
-        error: {
-            message: message,
-            source: source,
-            lineno: lineno,
-            colno: colno,
-            stack: error ? error.stack : 'N/A'
-        }
-    });
-    return true; // Prevents the default browser error handling.
-};
-
-import { initialize as initializeFFmpeg } from './ffmpeg-loader.worker.js';
+import { initializeFFmpeg } from '../ffmpeg/ffmpeg-loader.js'; // <-- MODIFIED
 import { analyzeLoudness } from './pipeline/pass1_analyzeLoudness.js';
 import { normalizeLoudness } from './pipeline/pass2_normalizeLoudness.js';
 import { analyzeNormalized } from './pipeline/pass3_analyzeNormalized.js';
 import { masterEncode } from './pipeline/pass4_masterEncode.js';
-
-/**
- * @typedef {import('../pipeline/step3-process-chunks.js').MasteringOptions} MasteringOptions
- */
 
 let ffmpeg = null;
 let isInitialized = false;
@@ -47,19 +23,24 @@ self.onmessage = async (e) => {
     if (command === 'init') {
         try {
             if (!ffmpeg) {
+                // --- MODIFICATION START ---
+                // The worker now calls the same loader as the main thread.
                 ffmpeg = await initializeFFmpeg();
+                // --- MODIFICATION END ---
                 await ffmpeg.createDir('/work');
                 ffmpeg.on('log', ({ message }) => logStore.append(message));
             }
             isInitialized = true;
             self.postMessage({ status: 'ready' });
         } catch (error) {
+            console.error("Error during worker FFMPEG initialization:", error);
             self.postMessage({ status: 'error', context: 'initialization', error: { message: error.message, stack: error.stack } });
         }
         return;
     }
 
     if (command === 'process') {
+        // ... (rest of the file is unchanged)
         if (!isInitialized) {
             self.postMessage({ status: 'error', context: 'processing', error: { message: 'Worker is not initialized.' } });
             return;

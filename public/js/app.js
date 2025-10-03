@@ -1,14 +1,9 @@
 import { UI } from './ui/ui.js';
 import { runMasteringPipelineParallel } from './main/ffmpeg-pipeline.js';
-import { initialize as initializeFFmpeg } from './main/ffmpeg-loader.js';
+import { initializeFFmpeg } from './ffmpeg/ffmpeg-loader.js'; // <-- MODIFIED
 import { runDiagnostics } from './ui/diagnostics.js';
 import { runFFmpeg } from './ffmpeg/run.js';
 import { WorkerPool } from './main/worker-pool.js';
-
-/**
- * @typedef {import('./main/ffmpeg-pipeline.js').PipelineResult} PipelineResult
- * @typedef {import('./main/ffmpeg-pipeline.js').UIPayload} UIPayload
- */
 
 class App {
     constructor() {
@@ -23,18 +18,20 @@ class App {
         runDiagnostics();
 
         try {
+            // --- MODIFICATION START ---
+            // Use the new, simplified loader.
             this.ffmpeg = await initializeFFmpeg((ratio) => this.ui.updateLoadingProgress(ratio));
 
             this.ui.displayWorkerLoadingState('Creating Web Workers...');
 
-            // --- BUG FIX ---
-            // Corrected the path to the worker script.
             this.workerPool = new WorkerPool('./js/worker/process-chunk.worker.js');
-            // --- END BUG FIX ---
 
+            // The worker now handles its own loading, so we just initialize it.
             await this.workerPool.initialize((progress) => {
                 this.ui.displayWorkerLoadingState(`Initializing Worker ${progress.ready} of ${progress.total}...`);
             });
+            // --- MODIFICATION END ---
+
 
             this.isReady = true;
 
@@ -77,10 +74,7 @@ class App {
         }
     }
 
-    /**
-     * Handles the file selection event from the UI.
-     * @param {File} file The audio file selected by the user.
-     */
+    // ... (rest of the file is unchanged)
     async handleFileSelection(file) {
         if (!this.isReady || !this.ffmpeg) {
             console.warn("FFmpeg or workers are not ready. Please wait for initialization to complete.");
@@ -91,10 +85,6 @@ class App {
 
         const masteringOptions = this.ui.getMasteringOptions();
 
-        /**
-         * A callback to handle generic UI updates from the pipeline.
-         * @param {UIPayload} update - The UI update payload.
-         */
         const onUpdate = (update) => {
             if (update.type === 'duration') {
                 this.ui.updateDuration(update.duration);
@@ -103,10 +93,6 @@ class App {
             }
         };
 
-        /**
-         * A callback to handle real-time progress updates from the workers.
-         * @param {import('./main/worker-pool.js').ProgressMessage} progress - The progress message object.
-         */
         const onProgress = ({ workerId, chunkIndex, message }) => {
             this.ui.updateWorkerStatus(workerId, `Chunk ${chunkIndex}: ${message}`);
         };

@@ -1,0 +1,1 @@
+https://app.unpkg.com/@ffmpeg/util@0.12.2/files/dist/umd

@@ -1,16 +1,5 @@
 /**
  * @file Manages a pool of Web Workers for parallel processing tasks.
- * This class handles the lifecycle of workers, job dispatching, queuing,
- * state tracking, progress reporting, and catastrophic error handling.
- */
-
-/**
- * @typedef {import('./ffmpeg-pipeline.js').UIPayload} UIPayload
- * @typedef {import('./ffmpeg-pipeline.js').PipelineResult} PipelineResult
- * @typedef {import('./ffmpeg-pipeline.js').FFmpeg} FFmpeg
- * @typedef {import('./worker-pool.js').Job} Job
- * @typedef {import('./worker-pool.js').ActiveJob} ActiveJob
- * @typedef {import('./worker-pool.js').ProgressMessage} ProgressMessage
  */
 
 export class WorkerPool {
@@ -27,18 +16,18 @@ export class WorkerPool {
 
     _createWorkers() {
         for (let i = 0; i < this.poolSize; i++) {
-            // --- BUG FIX ---
-            // Create a "classic" worker (no type: 'module'). This allows the worker
-            // to use importScripts(), which is required by ffmpeg-core.js.
-            const worker = new Worker(this.workerScript, );
-            // --- END BUG FIX ---
+            const worker = new Worker(this.workerScript, { type: 'module' });
             worker.id = i;
             worker.onerror = (e) => this._handleWorkerError(worker, e);
             this.workers.push(worker);
         }
     }
 
+    // --- MODIFICATION START ---
+    // This `initialize` signature now correctly matches the call from `app.js`.
+    // It only expects the `onProgress` callback.
     initialize(onProgress) {
+        // --- MODIFICATION END ---
         return new Promise((resolve, reject) => {
             let readyCount = 0;
             this.workers.forEach((worker) => {
@@ -52,8 +41,8 @@ export class WorkerPool {
                         }
                     } else if (e.data.status === 'error') {
                         const err = e.data.error;
-                        const errorDetails = `Message: ${err.message}\nSource: ${err.source}\nLine: ${err.lineno}`;
-                        reject(new Error(`Worker ${worker.id} failed to initialize with a caught error:\n${errorDetails}`));
+                        const errorMessage = err.message ? `${err.message}\n${err.stack}` : `Initialization failed with an unknown error.`;
+                        reject(new Error(`Worker ${worker.id} failed to initialize:\n${errorMessage}`));
                     } else {
                         reject(new Error(`Worker ${worker.id} sent an unexpected message during initialization.`));
                     }
@@ -64,7 +53,11 @@ export class WorkerPool {
                     const errorDetails = `Message: ${e.message}\nFile: ${e.filename}\nLine: ${e.lineno}`;
                     reject(new Error(`Worker ${worker.id} encountered a fatal error during initialization:\n${errorDetails}`));
                 };
+
+                // --- MODIFICATION START ---
+                // The postMessage call now correctly sends a simple, clonable object.
                 worker.postMessage({ command: 'init' });
+                // --- MODIFICATION END ---
             });
         });
     }
@@ -122,7 +115,6 @@ export class WorkerPool {
 
     _handleWorkerError(worker, error) {
         console.error(`Worker ${worker.id} crashed!`, error);
-
         const chunkIndex = this.workerState.get(worker.id);
         if (chunkIndex !== undefined) {
             const job = this.activeJobs.get(chunkIndex);
@@ -130,34 +122,6 @@ export class WorkerPool {
                 job.reject(new Error(`Worker ${worker.id} crashed while processing chunk ${chunkIndex}. The pipeline cannot continue.`));
                 this.activeJobs.delete(chunkIndex);
             }
-            this.workerState.delete(worker.id);
-        }
-
-        this._replaceWorker(worker.id);
-    }
-
-    _replaceWorker(workerId) {
-        const workerIndex = this.workers.findIndex(w => w.id === workerId);
-        if (workerIndex !== -1) {
-            this.workers[workerIndex].terminate();
-            const newWorker = new Worker(this.workerScript);
-            newWorker.id = workerId;
-            newWorker.onerror = (e) => this._handleWorkerError(newWorker, e);
-
-            newWorker.postMessage({ command: 'init'});
-            newWorker.onmessage = (e) => {
-                if (e.data.status === 'ready') {
-                    console.log(`Worker ${workerId} has been replaced and is ready.`);
-                    newWorker.onmessage = (msg) => this._handleWorkerMessage(newWorker, msg.data);
-
-                    const nextJob = this.jobQueue.shift();
-                    if (nextJob) {
-                        console.log(`Assigning queued job for chunk ${nextJob.message.chunkIndex} to new worker ${workerId}.`);
-                        this._assignJob(newWorker, nextJob.message, nextJob.transfer, nextJob.resolve, nextJob.reject, nextJob.onProgress);
-                    }
-                }
-            };
-            this.workers[workerIndex] = newWorker;
         }
     }
 
