@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Audio Visualizer</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet"/>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#a8c7fa",
+                        "background-light": "#f8f9fa",
+                        "background-dark": "#202124",
+                        "wave-unplayed-light": "#d1d5db",
+                        "wave-unplayed-dark": "#808695",
+                    },
+                    fontFamily: {
+                        display: ["Roboto", "sans-serif"],
+                    },
+                    borderRadius: {
+                        DEFAULT: "0.5rem",
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        .waveform-bar {
+            width: 4px;
+            margin-right: 8px;
+            border-radius: 2px;
+        }
+        .waveform-bar:last-child {
+            margin-right: 0;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display flex flex-col items-center justify-center min-h-screen p-4">
+<div class="w-full max-w-6xl p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
+    <div class="w-full h-48 flex items-center justify-center mb-6" id="waveform-container">
+    </div>
+    <div class="flex items-center justify-between text-gray-600 dark:text-gray-400 text-sm mb-2">
+        <span id="current-time">0:00.00</span>
+        <span id="total-duration">0:00.00</span>
+    </div>
+    <div class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full mb-6 cursor-pointer" id="progress-bar-container">
+        <div class="h-full bg-primary rounded-full" id="progress-bar" style="width: 0%;"></div>
+        <div class="relative w-full h-full -mt-2">
+            <div class="absolute top-1/2 -translate-y-1/2 w-4 h-4 bg-primary rounded-full shadow-lg" id="play-marker" style="left: 0%;"></div>
+        </div>
+    </div>
+    <div class="flex items-center justify-center space-x-6 text-gray-800 dark:text-white">
+        <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+            <span class="material-icons text-3xl">skip_previous</span>
+        </button>
+        <button class="p-4 bg-primary text-white rounded-full shadow-lg" id="play-pause-btn">
+            <span class="material-icons text-4xl" id="play-pause-icon">play_arrow</span>
+        </button>
+        <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+            <span class="material-icons text-3xl">skip_next</span>
+        </button>
+    </div>
+</div>
+<script>
+    const DURATION_SLICE = 5;
+    const NUM_BARS = 100;
+    const FPS = 30;
+    const WAVE_COLOR_PLAYED = "#a8c7fa";
+    // Mock data generation
+    function generateMockDbData(length) {
+        return Array.from({ length }, () => -Math.random() * 60);
+    }
+    const MOCK_AUDIO_DURATION = 30; // 30 seconds
+    const totalDbData = generateMockDbData((MOCK_AUDIO_DURATION / 0.05));
+    function getBin(db) {
+        if (db > -6) return 8;
+        if (db > -12) return 7;
+        if (db > -18) return 6;
+        if (db > -24) return 5;
+        if (db > -30) return 4;
+        if (db > -36) return 3;
+        if (db > -42) return 2;
+        return 1;
+    }
+    const waveformContainer = document.getElementById('waveform-container');
+    const playPauseBtn = document.getElementById('play-pause-btn');
+    const playPauseIcon = document.getElementById('play-pause-icon');
+    const progressBar = document.getElementById('progress-bar');
+    const playMarker = document.getElementById('play-marker');
+    const progressBarContainer = document.getElementById('progress-bar-container');
+    const currentTimeEl = document.getElementById('current-time');
+    const totalDurationEl = document.getElementById('total-duration');
+    let isPlaying = false;
+    let currentTime = 0;
+    let currentSliceIndex = -1;
+    let animationFrameId;
+    function formatTime(seconds) {
+        const minutes = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        const milliseconds = Math.floor((seconds - Math.floor(seconds)) * 100);
+        return `${minutes}:${secs.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
+    }
+    totalDurationEl.textContent = formatTime(MOCK_AUDIO_DURATION);
+    function renderWaveformSlice(sliceIndex) {
+        if (sliceIndex === currentSliceIndex) return;
+        currentSliceIndex = sliceIndex;
+        const start = sliceIndex * NUM_BARS;
+        const end = start + NUM_BARS;
+        const dataSlice = totalDbData.slice(start, end);
+        waveformContainer.innerHTML = '';
+        dataSlice.forEach((db, i) => {
+            const bin = getBin(db);
+            const barHeight = (bin / 8) * 100;
+            const bar = document.createElement('div');
+            bar.className = 'waveform-bar bg-wave-unplayed-light dark:bg-wave-unplayed-dark';
+            bar.style.height = `${barHeight}%`;
+            bar.dataset.index = i;
+            waveformContainer.appendChild(bar);
+        });
+    }
+    function updateVisualization() {
+        const progress = (currentTime / MOCK_AUDIO_DURATION) * 100;
+        progressBar.style.width = `${progress}%`;
+        playMarker.style.left = `calc(${progress}% - 8px)`;
+        const sliceIndex = Math.floor(currentTime / DURATION_SLICE);
+        renderWaveformSlice(sliceIndex);
+        const timeWithinSlice = currentTime % DURATION_SLICE;
+        const barIndex = Math.floor(timeWithinSlice / 0.05);
+        const bars = waveformContainer.querySelectorAll('.waveform-bar');
+        bars.forEach((bar, i) => {
+            if (i < barIndex) {
+                bar.style.backgroundColor = WAVE_COLOR_PLAYED;
+            } else {
+                const isDark = document.documentElement.classList.contains('dark');
+                bar.style.backgroundColor = isDark ? tailwind.config.theme.extend.colors["wave-unplayed-dark"] : tailwind.config.theme.extend.colors["wave-unplayed-light"];
+            }
+        });
+        currentTimeEl.textContent = formatTime(currentTime);
+    }
+    function playLoop() {
+        if (!isPlaying) return;
+        currentTime += 1 / FPS;
+        if (currentTime >= MOCK_AUDIO_DURATION) {
+            currentTime = MOCK_AUDIO_DURATION;
+            togglePlayPause(); // Stop at the end
+        }
+        updateVisualization();
+        animationFrameId = requestAnimationFrame(playLoop);
+    }
+    function togglePlayPause() {
+        isPlaying = !isPlaying;
+        if (isPlaying) {
+            playPauseIcon.textContent = 'pause';
+            if (currentTime >= MOCK_AUDIO_DURATION) {
+                currentTime = 0; // Restart if at the end
+            }
+            animationFrameId = requestAnimationFrame(playLoop);
+        } else {
+            playPauseIcon.textContent = 'play_arrow';
+            cancelAnimationFrame(animationFrameId);
+        }
+    }
+    function seek(e) {
+        const rect = progressBarContainer.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const percentage = Math.max(0, Math.min(1, x / rect.width));
+        currentTime = percentage * MOCK_AUDIO_DURATION;
+        updateVisualization();
+        if (isPlaying) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = requestAnimationFrame(playLoop);
+        }
+    }
+    playPauseBtn.addEventListener('click', togglePlayPause);
+    progressBarContainer.addEventListener('click', seek);
+    // Initial render
+    renderWaveformSlice(0);
+    updateVisualization();
+    // Dark mode awareness for initial bar colors
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.attributeName === "class") {
+                updateVisualization();
+            }
+        });
+    });
+    observer.observe(document.documentElement, { attributes: true });
+</script>
+
+</body></html>
