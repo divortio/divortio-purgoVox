@@ -5,18 +5,22 @@ import path from 'path';
 import { pipeline } from 'stream/promises';
 
 // --- Configuration ---
+// https://app.unpkg.com/@ffmpeg/ffmpeg@0.12.15
 const FFMPEG_VERSION = "0.12.15";
 const CORE_VERSION = "0.12.10";
 const UTIL_VERSION = "0.12.1";
+// https://app.unpkg.com/@ffmpeg/types
+const TYPES_VERSION = "0.12.4";
 
-const VENDOR_DIR = path.join('public', 'vendor');
+const VENDOR_DIR = path.join('public', 'js', 'vendor');
 const UNPKG_BASE_URL = 'https://unpkg.com';
 
 const packagesToProcess = [
     { pkg: '@ffmpeg/ffmpeg', version: FFMPEG_VERSION, path: 'dist/' },
     { pkg: '@ffmpeg/core', version: CORE_VERSION, path: 'dist/' },
     { pkg: '@ffmpeg/core-mt', version: CORE_VERSION, path: 'dist/' },
-    { pkg: '@ffmpeg/util', version: UTIL_VERSION, path: 'dist/' }
+    { pkg: '@ffmpeg/util', version: UTIL_VERSION, path: 'dist/' },
+    { pkg: '@ffmpeg/types', version: TYPES_VERSION, path: '' }
 ];
 
 // --- Helper Functions ---

@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>MutterToButterWASM - Audio Mastering</title>
     <link rel="stylesheet" type="text/css" href="css/style.css">
+
+    <script type="importmap">
+        {
+          "imports": {
+            "@ffmpeg/ffmpeg": "/vendor/@ffmpeg/ffmpeg/dist/esm/index.js",
+            "@ffmpeg/util": "/vendor/@ffmpeg/util/dist/esm/index.js"
+          }
+        }
+    </script>
 </head>
 <body>
 <div class="container">
@@ -79,7 +88,6 @@
             <span>Console</span>
             <span class="console-arrow">►</span>
         </div>
-        <div id="diagnosticsSection" style="display: none;">
             <div class="code-block-container">
                 <h3>FFmpeg Version</h3>
                 <div id="ffmpegVersionIndicator" class="code-block">Loading...</div>
@@ -87,10 +95,6 @@
             <div class="code-block-container">
                 <h3>Available Filters</h3>
                 <div id="ffmpegFilters" class="code-block">Loading...</div>
-            </div>
-            <div class="code-block-container">
-                <h3>Multi-threading Diagnostics</h3>
-                <div id="mtDiagnostics" class="code-block"></div>
             </div>
             <div class="code-block-container">
                 <h3>FFmpeg Command</h3>
